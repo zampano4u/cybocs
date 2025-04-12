@@ -6,8 +6,7 @@ import streamlit.components.v1 as components
 # Goodman, W. K., Cicchetti, D. & Leckman, J. F. (1997). Children's Yale-Brown Obsessive Compulsive Scale: reliability and validity.
 # Journal of the American Academy of Child & Adolescent Psychiatry, 36(6), 844-852.
 #
-# 이 프로그램은 업로드하신 CYBOCS 어린이판 자료()를 기반으로 제작되었습니다.
-
+# 이 프로그램은 업로드하신 CYBOCS 어린이판 자료를 기반으로 제작되었습니다.
 
 # 도입 증상 체크리스트용 한영 매핑 구조 (CYBOCS 어린이판 자료 반영)
 cybocs_mapping = {
@@ -227,7 +226,7 @@ cybocs_scale = [
         "description_ko": "강박 사고가 떠오를 때 이를 무시하거나 저항하려는 노력을 평가합니다.",
         "description_en": "How much effort do you make to resist the obsessive thoughts?",
         "options": [
-            {"score": 0, "response_text_ko": "항상 저항하려 함", "response_text_en": "Always resist"},
+            {"score": 0, "response_text_ko": "항상 저항함", "response_text_en": "Always resist"},
             {"score": 1, "response_text_ko": "대부분의 시간 저항 시도", "response_text_en": "Try to resist most of the time"},
             {"score": 2, "response_text_ko": "어느 정도 저항함", "response_text_en": "Make some effort to resist"},
             {"score": 3, "response_text_ko": "거의 저항하지 않고 굴복하나 약간의 꺼림칙함 있음", "response_text_en": "Yield to almost all obsessions with slight reluctance"},
@@ -329,18 +328,18 @@ def main():
         st.session_state["confirmed"] = False
     if "submitted" not in st.session_state:
         st.session_state["submitted"] = False
-    if "selected_symptoms_ko" not in st.session_state:
-        st.session_state["selected_symptoms_ko"] = []
-    if "selected_symptoms_en" not in st.session_state:
-        st.session_state["selected_symptoms_en"] = []
+    if "selected_symptoms_current" not in st.session_state:
+        st.session_state["selected_symptoms_current"] = []
+    if "selected_symptoms_past" not in st.session_state:
+        st.session_state["selected_symptoms_past"] = []
     if "answers" not in st.session_state:
         st.session_state["answers"] = {}  # key: 문항 id, value: 선택한 옵션 인덱스
 
     # 1단계: 도입 증상 체크리스트 화면
     if not st.session_state["confirmed"]:
         st.header("CY-BOCS 도입 증상 체크리스트")
-        st.write("아래 항목에서 해당하는 증상을 선택해주세요.")
-        # cybocs_mapping의 각 카테고리별로 체크박스 렌더링
+        st.write("아래 항목에서 해당하는 증상을 선택해주세요. 각 항목에 대해 '없음', '현재(최근 일주일간)', '과거' 중 하나를 선택하실 수 있습니다.")
+        # cybocs_mapping의 각 카테고리별로 라디오 버튼 렌더링
         for category_key, category in cybocs_mapping.items():
             st.subheader(category["question_ko"])
             for idx, item in enumerate(category["items"]):
@@ -352,14 +351,28 @@ def main():
                     cat_keyword_en = category["question_en"].split()[0]
                     display_ko = f"기타: {cat_keyword_ko}"
                     display_en = f"Other: {cat_keyword_en}"
-                # 고유한 키를 사용하여 체크박스 생성
-                selected_item = st.checkbox(display_ko, key=f"{category_key}_{idx}")
-                if selected_item:
-                    # 중복 저장 방지 후 선택한 항목 저장 (수정된 텍스트 사용)
-                    if display_ko not in st.session_state["selected_symptoms_ko"]:
-                        st.session_state["selected_symptoms_ko"].append(display_ko)
-                        st.session_state["selected_symptoms_en"].append(display_en)
+                # 라디오 버튼 생성: 옵션 - "없음", "현재(최근 일주일간)", "과거"
+                st.radio(
+                    label=display_ko,
+                    options=["없음", "현재(최근 일주일간)", "과거"],
+                    index=0,
+                    key=f"{category_key}_{idx}"
+                )
         if st.button("증상 선택 완료"):
+            # 각 증상별 선택 결과를 확인하여 현재와 과거 증상 리스트에 저장
+            for category_key, category in cybocs_mapping.items():
+                for idx, item in enumerate(category["items"]):
+                    key_name = f"{category_key}_{idx}"
+                    if key_name in st.session_state:
+                        selection = st.session_state[key_name]
+                        display_en = item["en"]
+                        if item["ko"] == "기타":
+                            cat_keyword_en = category["question_en"].split()[0]
+                            display_en = f"Other: {cat_keyword_en}"
+                        if selection == "현재(최근 일주일간)":
+                            st.session_state["selected_symptoms_current"].append(display_en)
+                        elif selection == "과거":
+                            st.session_state["selected_symptoms_past"].append(display_en)
             st.session_state["confirmed"] = True
 
     # 2단계: 평가 문항 화면
@@ -391,7 +404,7 @@ def main():
             results_text += f"   ({selected_index}) {question['options'][selected_index]['response_text_en']}\n\n"
         results_text += f"Total Score: {total_score}\n"
         
-        # 임상적 해석 함수 (점수 구간에 따라 해석을 제공합니다.)
+        # 임상적 해석 함수 (점수 구간에 따라 해석 제공)
         def interpret_score(score):
             if score <= 7:
                 return "Minimal symptoms (0-7 points)"
@@ -406,11 +419,13 @@ def main():
         interpretation = interpret_score(total_score)
         results_text += f"Interpretation: {interpretation}\n\n"
         
-        # 선택한 증상(영어) 항목을 하나의 문자열로 결합
-        english_symptoms = ", ".join(st.session_state["selected_symptoms_en"]) if st.session_state["selected_symptoms_en"] else "None"
-        results_text += f"Selected symptoms (English): {english_symptoms}\n"
+        # 선택한 증상(영어) 항목을 현재 증상과 과거 증상으로 분리하여 결합
+        current_symptoms = ", ".join(st.session_state["selected_symptoms_current"]) if st.session_state["selected_symptoms_current"] else "None"
+        past_symptoms = ", ".join(st.session_state["selected_symptoms_past"]) if st.session_state["selected_symptoms_past"] else "None"
+        results_text += f"Selected Symptoms (Current): {current_symptoms}\n"
+        results_text += f"Selected Symptoms (Past): {past_symptoms}\n"
         
-        # st.markdown을 이용해 코드 블록 형태로 출력 (줄바꿈 적용)
+        # 마크다운 코드 블록 형태로 결과 텍스트 출력 (줄바꿈 적용)
         st.markdown(f"```\n{results_text}\n```")
 
 if __name__ == "__main__":
