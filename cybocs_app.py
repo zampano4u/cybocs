@@ -26,7 +26,7 @@ cybocs_mapping = {
             {"ko": "기타", "en": "Other"}
         ]
     },
-    "contamination_obsessions": {
+"contamination_obsessions": {
         "question_ko": "오염 관련 강박사고",
         "question_en": "CONTAMINATION OBSESSIONS",
         "items": [
@@ -61,7 +61,7 @@ cybocs_mapping = {
              "en": "Hoarding/Saving obsessions [distinguish from hobbies and concern with objects of monetary or sentimental value]"}
         ]
     },
-    "religious_obsessions": {
+"religious_obsessions": {
         "question_ko": "종교적 강박사고",
         "question_en": "RELIGIOUS OBSESSIONS",
         "items": [
@@ -95,7 +95,7 @@ cybocs_mapping = {
             {"ko": "미신적 공포", "en": "Superstitious fears"}
         ]
     },
-    "somatic_obsessions": {
+"somatic_obsessions": {
         "question_ko": "신체 관련 강박사고",
         "question_en": "SOMATIC OBSESSIONS",
         "items": [
@@ -128,7 +128,7 @@ cybocs_mapping = {
             {"ko": "기타", "en": "Other"}
         ]
     },
-    "repeating_rituals": {
+"repeating_rituals": {
         "question_ko": "반복 의례행동",
         "question_en": "REPEATING RITUALS",
         "items": [
@@ -174,7 +174,6 @@ cybocs_mapping = {
         ]
     }
 }
-
 # 평가 문항 및 선택지 데이터 구조 (CYBOCS 평가 척도; obsessions: 문항 1~5, compulsions: 문항 6~10)
 cybocs_scale = [
     {
@@ -247,7 +246,7 @@ cybocs_scale = [
             {"score": 4, "response_text_ko": "전혀 통제 불가능", "response_text_en": "No control, completely involuntary"}
         ]
     },
-    {
+{
         "id": 6,
         "question_ko": "강박 행동에 소비되는 시간",
         "question_en": "TIME SPENT PERFORMING COMPULSIVE BEHAVIORS",
@@ -318,7 +317,6 @@ cybocs_scale = [
         ]
     }
 ]
-
 # 메인 함수: 앱 상태(증상 체크리스트 / 평가 문항 / 결과 출력)에 따라 화면 전환
 def main():
     st.title("CY-BOCS (어린이판) 평가 웹앱")
@@ -374,8 +372,7 @@ def main():
                         elif selection == "과거":
                             st.session_state["selected_symptoms_past"].append(display_en)
             st.session_state["confirmed"] = True
-
-    # 2단계: 평가 문항 화면
+# 2단계: 평가 문항 화면
     elif not st.session_state["submitted"]:
         st.header("CY-BOCS 평가 문항")
         st.write("아래 문항에 대해 해당하는 선택지를 선택해주세요.")
@@ -391,21 +388,34 @@ def main():
         if st.button("제출"):
             st.session_state["submitted"] = True
 
-    # 3단계: 결과 출력 화면 (영어로만 출력)
+    # 3단계: 결과 출력 화면 (한국어/영어 탭으로 나누어 출력)
     else:
-        st.header("Evaluation Results (CY-BOCS)")
+        st.header("평가 결과")
+        
+        # 탭 생성 - 한국어와 영어 결과 구분
+        tab1, tab2 = st.tabs(["한국어 결과", "English Results"])
+        
+        # 총점 계산
         total_score = 0
-        results_text = "Children's Yale-Brown Obsessive Compulsive Scale (CY-BOCS)\n\n"
         for question in cybocs_scale:
             qid = question["id"]
             selected_index = st.session_state["answers"].get(qid, 0)
             total_score += question["options"][selected_index]["score"]
-            results_text += f"{qid}. {question['question_en']}\n"
-            results_text += f"   ({selected_index}) {question['options'][selected_index]['response_text_en']}\n\n"
-        results_text += f"Total Score: {total_score}\n"
         
         # 임상적 해석 함수 (점수 구간에 따라 해석 제공)
-        def interpret_score(score):
+        def interpret_score_ko(score):
+            if score <= 7:
+                return "최소 증상 (0-7점)"
+            elif score <= 15:
+                return "경미한 증상 (8-15점)"
+            elif score <= 23:
+                return "중등도 증상 (16-23점)"
+            elif score <= 31:
+                return "심각한 증상 (24-31점)"
+            else:
+                return "극심한 증상 (32-40점)"
+                
+        def interpret_score_en(score):
             if score <= 7:
                 return "Minimal symptoms (0-7 points)"
             elif score <= 15:
@@ -416,17 +426,65 @@ def main():
                 return "Severe symptoms (24-31 points)"
             else:
                 return "Extreme symptoms (32-40 points)"
-        interpretation = interpret_score(total_score)
-        results_text += f"Interpretation: {interpretation}\n\n"
+# 한국어 탭 내용
+        with tab1:
+            results_text_ko = "어린이용 예일-브라운 강박 증상 척도 (CY-BOCS)\n\n"
+            for question in cybocs_scale:
+                qid = question["id"]
+                selected_index = st.session_state["answers"].get(qid, 0)
+                results_text_ko += f"{qid}. {question['question_ko']}\n"
+                results_text_ko += f"   ({selected_index}) {question['options'][selected_index]['response_text_ko']}\n\n"
+            results_text_ko += f"총점: {total_score}\n"
+            interpretation_ko = interpret_score_ko(total_score)
+            results_text_ko += f"해석: {interpretation_ko}\n\n"
+            
+            # 선택한 증상을 현재와 과거로 구분하여 표시 (줄바꿈)
+            if st.session_state["selected_symptoms_current"]:
+                results_text_ko += "선택한 증상 (현재):\n"
+                for symptom in st.session_state["selected_symptoms_current"]:
+                    results_text_ko += f"- {symptom}\n"
+            else:
+                results_text_ko += "선택한 증상 (현재): 없음\n"
+            
+            if st.session_state["selected_symptoms_past"]:
+                results_text_ko += "\n선택한 증상 (과거):\n"
+                for symptom in st.session_state["selected_symptoms_past"]:
+                    results_text_ko += f"- {symptom}\n"
+            else:
+                results_text_ko += "\n선택한 증상 (과거): 없음\n"
+            
+            # 마크다운 코드 블록 내에서 결과 텍스트 출력
+            st.markdown(f"```\n{results_text_ko}\n```")
         
-        # 선택한 증상(영어) 항목을 현재 증상과 과거 증상으로 분리하여 결합
-        current_symptoms = ", ".join(st.session_state["selected_symptoms_current"]) if st.session_state["selected_symptoms_current"] else "None"
-        past_symptoms = ", ".join(st.session_state["selected_symptoms_past"]) if st.session_state["selected_symptoms_past"] else "None"
-        results_text += f"Selected Symptoms (Current): {current_symptoms}\n"
-        results_text += f"Selected Symptoms (Past): {past_symptoms}\n"
-        
-        # 마크다운 코드 블록 형태로 결과 텍스트 출력 (줄바꿈 적용)
-        st.markdown(f"```\n{results_text}\n```")
+        # 영어 탭 내용
+        with tab2:
+            results_text_en = "Children's Yale-Brown Obsessive Compulsive Scale (CY-BOCS)\n\n"
+            for question in cybocs_scale:
+                qid = question["id"]
+                selected_index = st.session_state["answers"].get(qid, 0)
+                results_text_en += f"{qid}. {question['question_en']}\n"
+                results_text_en += f"   ({selected_index}) {question['options'][selected_index]['response_text_en']}\n\n"
+            results_text_en += f"Total Score: {total_score}\n"
+            interpretation_en = interpret_score_en(total_score)
+            results_text_en += f"Interpretation: {interpretation_en}\n\n"
+            
+            # 선택한 증상을 현재와 과거로 구분하여 표시 (줄바꿈)
+            if st.session_state["selected_symptoms_current"]:
+                results_text_en += "Selected Symptoms (Current):\n"
+                for symptom in st.session_state["selected_symptoms_current"]:
+                    results_text_en += f"- {symptom}\n"
+            else:
+                results_text_en += "Selected Symptoms (Current): None\n"
+            
+            if st.session_state["selected_symptoms_past"]:
+                results_text_en += "\nSelected Symptoms (Past):\n"
+                for symptom in st.session_state["selected_symptoms_past"]:
+                    results_text_en += f"- {symptom}\n"
+            else:
+                results_text_en += "\nSelected Symptoms (Past): None\n"
+            
+            # 마크다운 코드 블록 내에서 결과 텍스트 출력
+            st.markdown(f"```\n{results_text_en}\n```")
 
 if __name__ == "__main__":
     main()
